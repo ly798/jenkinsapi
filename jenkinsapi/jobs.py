@@ -163,7 +163,7 @@ class Jobs(object):
 
         return self[job_name]
 
-    def create_multibranch_pipeline(self, job_name, config, block=True, delay=60):
+    def create_multibranch_pipeline(self, job_name, config, block=True, delay=60, confirm_status=True):
         """
         Create a multibranch pipeline job
 
@@ -191,23 +191,24 @@ class Jobs(object):
         # Reset to get it refreshed from Jenkins
         self._data = []
 
-        # Launch a first scan / indexing to discover the branches...
-        self.jenkins.requester.post_and_confirm_status(
-            '{}/job/{}/build'.format(self.jenkins.baseurl, job_name),
-            data='',
-            valid=[200, 302],  # expect 302 without redirects
-            allow_redirects=False)
+        if confirm_status:
+            # Launch a first scan / indexing to discover the branches...
+            self.jenkins.requester.post_and_confirm_status(
+                '{}/job/{}/build'.format(self.jenkins.baseurl, job_name),
+                data='',
+                valid=[200, 302],  # expect 302 without redirects
+                allow_redirects=False)
 
-        start_time = time.time()
-        # redirect-url does not work with indexing;
-        # so the only workaround found is to parse the console output untill scan has finished.
-        scan_finished = False
-        while not scan_finished and block and time.time() < start_time + delay:
-            indexing_console_text = self.jenkins.requester.get_url(
-                '{}/job/{}/indexing/consoleText'.format(self.jenkins.baseurl, job_name))
-            if indexing_console_text.text.strip().split('\n')[-1].startswith('Finished:'):
-                scan_finished = True
-            time.sleep(1)
+            start_time = time.time()
+            # redirect-url does not work with indexing;
+            # so the only workaround found is to parse the console output untill scan has finished.
+            scan_finished = False
+            while not scan_finished and block and time.time() < start_time + delay:
+                indexing_console_text = self.jenkins.requester.get_url(
+                    '{}/job/{}/indexing/consoleText'.format(self.jenkins.baseurl, job_name))
+                if indexing_console_text.text.strip().split('\n')[-1].startswith('Finished:'):
+                    scan_finished = True
+                time.sleep(1)
 
         # now search for all jobs created; those who start with job_name + '/'
         jobs = []
