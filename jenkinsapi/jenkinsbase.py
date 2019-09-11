@@ -5,6 +5,7 @@ Module for JenkinsBase class
 import ast
 import pprint
 import logging
+import re
 from six.moves.urllib.parse import quote as urlquote
 from jenkinsapi import config
 from jenkinsapi.custom_exceptions import JenkinsAPIException
@@ -81,7 +82,9 @@ class JenkinsBase(object):
                           url, params, tree if tree else '')
             response.raise_for_status()
         try:
-            return ast.literal_eval(response.text)
+            tmp_url = re.search(r'https?://(\w+\.)+\w+/', url).group()
+            text = re.sub(r'https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d{1,5})?/', tmp_url, response.text)
+            return ast.literal_eval(text)
         except Exception:
             logging.exception('Inappropriate content found at %s', url)
             raise JenkinsAPIException('Cannot parse %s' % response.content)
